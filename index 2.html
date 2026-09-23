@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="th" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Self Dev Tracker v4</title>
+<link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700;800&family=Sarabun:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+
+<div id="auth-screen">
+  <div class="splash" id="splash">
+    <div class="target-wrap idle" id="targetWrap">
+      <div class="impact-glow" id="impactGlow"></div>
+      <div class="arrow" id="arrow">
+        <svg viewBox="0 0 150 8" xmlns="http://www.w3.org/2000/svg"><line x1="0" y1="4" x2="120" y2="4" stroke="#cfe8ff" stroke-width="2"/><path d="M120 4 L108 0 L150 4 L108 8 Z" fill="#fff"/><path d="M0 4 L14 0 M0 4 L14 8" stroke="#ff5a72" stroke-width="2" stroke-linecap="round"/></svg>
+      </div>
+      <div class="target-emoji">🎯</div>
+    </div>
+    <p class="splash-hint">แตะเป้าธนูเพื่อเริ่มต้น</p>
+  </div>
+  <div class="auth-box" id="authBox">
+    <div class="auth-logo">
+      <div class="auth-gem">🎯</div>
+      <div class="auth-title">Self Dev Tracker</div>
+      <div class="auth-sub">ติดตามการพัฒนาตนเอง + การเงิน</div>
+    </div>
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="tab-login" onclick="switchTab('login')">เข้าสู่ระบบ</button>
+      <button class="auth-tab" id="tab-register" onclick="switchTab('register')">สมัครสมาชิก</button>
+    </div>
+    <div id="form-login" class="auth-form">
+      <div class="auth-err" id="login-err">⚠️ <span id="login-err-msg"></span></div>
+      <div class="auth-field">
+        <label>Email</label>
+        <input type="email" id="login-email" placeholder="your@email.com" autocomplete="email">
+      </div>
+      <div class="auth-field">
+        <label>Password</label>
+        <div class="pw-wrap">
+          <input type="password" id="login-pw" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+          <button class="pw-eye" onclick="togglePw('login-pw',this)">👁️</button>
+        </div>
+      </div>
+            <label class="remember-row">
+        <input type="checkbox" id="login-remember">
+        <span class="remember-box">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#06122b" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        </span>
+        <span class="rlabel">จดจำฉันไว้ — เข้าสู่ระบบอัตโนมัติครั้งหน้า</span>
+      </label>
+      <button class="auth-btn" id="login-btn" onclick="doLogin()">เข้าสู่ระบบ</button>
+    </div>
+    <div id="form-register" class="auth-form" style="display:none">
+      <div class="auth-err" id="reg-err">⚠️ <span id="reg-err-msg"></span></div>
+      <div class="auth-ok" id="reg-ok">✅ สมัครสมาชิกสำเร็จ! กรุณาเข้าสู่ระบบ</div>
+      <div class="auth-field">
+        <label>ชื่อ-นามสกุล</label>
+        <input type="text" id="reg-name" placeholder="กรอกชื่อของคุณ">
+      </div>
+      <div class="auth-field">
+        <label>Email</label>
+        <input type="email" id="reg-email" placeholder="your@email.com" autocomplete="email">
+      </div>
+      <div class="auth-field">
+        <label>Password (อย่างน้อย 6 ตัวอักษร)</label>
+        <div class="pw-wrap">
+          <input type="password" id="reg-pw" placeholder="••••••••" onkeydown="if(event.key==='Enter')doRegister()">
+          <button class="pw-eye" onclick="togglePw('reg-pw',this)">👁️</button>
+        </div>
+      </div>
+      <button class="auth-btn" id="reg-btn" onclick="doRegister()">สมัครสมาชิก</button>
+    </div>
+    <div class="auth-loading" id="auth-loading">
+      <span class="spin"></span> กำลังดำเนินการ...
+    </div>
+  </div>
+</div>
+
+<div id="app">
+  <header class="hdr">
+    <div class="hdr-inner">
+      <div class="hdr-brand">
+        <div class="hdr-gem">🎯</div>
+        <div>
+          <div class="hdr-title">Self Dev Tracker</div>
+          <div class="hdr-sub" id="hdr-greeting">ยินดีต้อนรับ</div>
+        </div>
+      </div>
+      <div class="hdr-right">
+        <nav class="nav">
+          <button class="nav-btn" onclick="go('settings')">⚙️ ตั้งค่า</button>
+          <button class="nav-btn" onclick="go('log')">📋 บันทึก</button>
+          <button class="nav-btn" onclick="go('dashboard')">📊 Dashboard</button>
+          <button class="nav-btn active" onclick="go('finance')">💰 การเงิน</button>
+        </nav>
+        <div class="user-chip">
+          <div class="uc-avatar" id="uc-avatar">?</div>
+          <span class="uc-name" id="uc-name">-</span>
+        </div>
+        <button class="logout-btn" onclick="doLogout()" title="ออกจากระบบ">🚪</button>
+        <button class="theme-btn" id="theme-btn" onclick="toggleTheme()">🌙</button>
+      </div>
+    </div>
+    <div class="sync-bar">
+      <div class="sync-dot" id="sync-dot"></div>
+      <span id="sync-text">เชื่อมต่อ Supabase</span>
+    </div>
+  </header>
+
+  <div id="page-settings" class="page">
+  <div class="wrap">
+    <div class="card">
+      <div class="card-hdr"><div class="card-title">👤 ข้อมูลของฉัน</div></div>
+      <div class="card-body">
+        <div class="info-grid">
+          <div class="field"><label>ชื่อ-นามสกุล</label><input type="text" id="s-name" placeholder="กรอกชื่อ"></div>
+          <div class="field">
+            <label>ชั้น / ตำแหน่ง</label>
+            <select id="s-class">
+              <option value="">-- เลือก --</option>
+              <option>ม.1</option><option>ม.2</option><option>ม.3</option>
+              <option>ม.4</option><option>ม.5</option><option>ม.6</option>
+              <option>อื่นๆ</option>
+            </select>
+          </div>
+          <div class="field"><label>เดือน/ปี</label><input type="month" id="s-month"></div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-hdr">
+        <div class="card-title">🎯 จัดการเป้าหมาย</div>
+        <button class="btn btn-primary btn-sm" onclick="addGoal()">+ เพิ่มเป้าหมาย</button>
+      </div>
+      <div class="card-body">
+        <p style="font-size:12.5px;color:var(--muted);margin-bottom:14px">ตั้งชื่อ ไอคอน และสีของแต่ละเป้าหมาย (สูงสุด 10 ข้อ)</p>
+        <div class="goals-list" id="goals-list"></div>
+        <div style="display:flex;align-items:center;gap:12px;margin-top:14px">
+          <button class="btn btn-primary" onclick="saveSettings()">☁️ บันทึกและซิงค์</button>
+          <span class="save-flash" id="save-flash">✅ บันทึกแล้ว!</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  </div>
+
+  <div id="page-log" class="page">
+  <div class="wrap">
+    <div class="card">
+      <div class="card-hdr">
+        <div class="card-title">📅 ตารางบันทึกประจำวัน <span class="badge badge-blue" id="log-badge">0/0 วัน</span></div>
+        <button class="btn btn-primary btn-sm" onclick="syncRows()">☁️ ซิงค์</button>
+      </div>
+      <div class="tbl-wrap">
+        <table><thead id="log-thead"></thead><tbody id="log-tbody"></tbody></table>
+      </div>
+    </div>
+  </div>
+  </div>
+
+  <div id="page-dashboard" class="page">
+  <div class="wrap">
+    <div class="overall-hero">
+      <div>
+        <div class="oh-lbl">ความสำเร็จโดยรวม (ทั้งเดือน)</div>
+        <div><span class="oh-val" id="d-overall">0</span><span class="oh-unit">%</span></div>
+      </div>
+      <div class="oh-right">
+        <div class="oh-rlbl">วันที่บันทึก</div>
+        <div class="oh-rval"><span id="d-days">0</span> <span class="oh-accent">/ <span id="d-totaldays">31</span> วัน 🔥</span></div>
+      </div>
+    </div>
+    <div id="d-msg"></div>
+    <div class="sec-title">📊 KPI รายเป้าหมาย</div>
+    <div class="kpi-grid" id="d-kpi"></div>
+    <div class="sec-title">📈 Progress Bar</div>
+    <div class="prog-card" id="d-prog"></div>
+    <div class="sec-title">📅 ความสำเร็จรายวัน (%)</div>
+    <div class="chart-card">
+      <div class="chart-title">📆 กราฟความสำเร็จรายวัน — % ของเป้าหมายที่ทำได้ในแต่ละวัน</div>
+      <div class="daily-pct-wrap">
+        <div class="daily-pct-row" id="d-daily-pct"></div>
+      </div>
+    </div>
+    <div class="charts-row">
+      <div class="chart-card">
+        <div class="chart-title">📊 กราฟแท่ง — ความสำเร็จแต่ละเป้าหมาย (ทั้งเดือน)</div>
+        <div class="bar-chart" id="d-bar"></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">🍩 วงล้อความสำเร็จรวม</div>
+        <div class="donut-wrap">
+          <div style="position:relative;width:135px;height:135px">
+            <svg width="135" height="135" viewBox="0 0 135 135">
+              <circle cx="67.5" cy="67.5" r="50" fill="none" stroke="var(--border)" stroke-width="17"/>
+              <circle id="d-donut" cx="67.5" cy="67.5" r="50" fill="none"
+                stroke="url(#dg)" stroke-width="17"
+                stroke-dasharray="314.16" stroke-dashoffset="314.16"
+                stroke-linecap="round" transform="rotate(-90 67.5 67.5)"
+                style="transition:stroke-dashoffset 1s cubic-bezier(.4,0,.2,1)"/>
+              <defs>
+                <linearGradient id="dg" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stop-color="#1a4a9e"/>
+                  <stop offset="100%" stop-color="#00e5ff"/>
+                </linearGradient>
+              </defs>
+            </svg>
+            <div class="donut-center">
+              <div class="donut-pct-text" id="d-dpct">0%</div>
+              <div class="donut-sub-text">สำเร็จ</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  </div>
+
+  <div id="page-finance" class="page">
+  <div class="wrap">
+    <div class="fin-hero">
+      <div style="position:relative;z-index:1">
+        <div class="fh-lbl">ยอดคงเหลือสุทธิ</div>
+        <div><span class="fh-balance" id="fh-balance">0.00</span> <span style="font-size:16px;color:rgba(255,255,255,0.6)">บาท</span></div>
+        <div style="font-size:12px;color:rgba(255,255,255,0.4);margin-top:5px"><span id="fh-tx-count">0</span> รายการ</div>
+      </div>
+      <div class="fh-stats">
+        <div class="fh-stat">
+          <div class="fhs-lbl">💚 รายรับรวม</div>
+          <div class="fhs-val inc" id="fh-income">0.00</div>
+          <div class="fhs-sub" id="fh-income-count">0 รายการ</div>
+        </div>
+        <div class="fh-stat">
+          <div class="fhs-lbl">❤️ รายจ่ายรวม</div>
+          <div class="fhs-val exp" id="fh-expense">0.00</div>
+          <div class="fhs-sub" id="fh-expense-count">0 รายการ</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="fin-toolbar">
+      <div class="fin-month-filter" id="fin-month-filter">
+        <button class="fmf-btn active" data-filter="all" onclick="setFinFilter('all',this)">ทั้งหมด</button>
+      </div>
+      <input type="text" class="fin-search" id="fin-search" placeholder="🔍 ค้นหา..." oninput="renderFinance()">
+    </div>
+
+    <div class="fin-layout">
+      <div class="fin-form-card">
+        <div class="card-hdr"><div class="card-title">➕ เพิ่มรายการ</div></div>
+        <div class="fin-form-body">
+          <div class="type-toggle">
+            <button class="type-btn sel-in" id="btn-in" onclick="setType('income')">💚 รายรับ</button>
+            <button class="type-btn" id="btn-out" onclick="setType('expense')">❤️ รายจ่าย</button>
+          </div>
+          <div class="field"><label>ชื่อรายการ</label><input type="text" id="f-name" placeholder="เช่น ค่าขนม, เงินเดือน"></div>
+          <div class="g2">
+            <div class="field"><label>จำนวน (บาท)</label><input type="number" id="f-amt" placeholder="0.00" min="0" step="0.01"></div>
+            <div class="field"><label>วันที่</label><input type="date" id="f-date"></div>
+          </div>
+          <div class="field">
+            <label>หมวดหมู่</label>
+            <select id="f-cat">
+              <optgroup label="รายจ่าย">
+                <option>🍜 อาหาร</option><option>🚌 เดินทาง</option>
+                <option>📚 การศึกษา</option><option>🎮 ความบันเทิง</option>
+                <option>👕 เสื้อผ้า</option><option>🛒 ของใช้</option>
+                <option>💡 ค่าสาธารณูปโภค</option>
+              </optgroup>
+              <optgroup label="รายรับ">
+                <option>💼 เงินเดือน</option><option>🎁 โบนัส</option>
+                <option>🔧 ค่าจ้าง</option><option>📈 ลงทุน</option>
+              </optgroup>
+              <option>📌 อื่นๆ</option>
+            </select>
+          </div>
+          <div class="field"><label>หมายเหตุ</label><textarea id="f-note" placeholder="รายละเอียดเพิ่มเติม..."></textarea></div>
+          <button class="btn btn-success" onclick="addTx()" style="width:100%;justify-content:center;padding:12px">+ เพิ่มและซิงค์</button>
+        </div>
+      </div>
+      <div class="fin-list-card">
+        <div class="fin-list-header">
+          <div class="card-title">📋 รายการธุรกรรม</div>
+          <span class="badge badge-blue" id="fin-list-count">0 รายการ</span>
+        </div>
+        <div class="fin-list-body" id="fin-list"></div>
+      </div>
+    </div>
+
+    <div class="sec-title">📊 วิเคราะห์งบการเงิน</div>
+    <div class="fin-charts">
+      <div class="fin-chart-card">
+        <div class="fcc-title">🥧 รายจ่ายแยกหมวดหมู่</div>
+        <div class="pie-row">
+          <div class="pie-svg-wrap" style="width:140px;height:140px;flex-shrink:0">
+            <svg id="pie-expense" width="140" height="140" viewBox="0 0 140 140"></svg>
+            <div class="pie-center-lbl">
+              <div class="pie-center-val" style="color:var(--red)" id="pie-exp-center">0</div>
+              <div class="pie-center-lbl2">บาท</div>
+            </div>
+          </div>
+          <div class="pie-legend" id="pie-exp-legend"></div>
+        </div>
+      </div>
+      <div class="fin-chart-card">
+        <div class="fcc-title">🟢 รายรับแยกหมวดหมู่</div>
+        <div class="pie-row">
+          <div class="pie-svg-wrap" style="width:140px;height:140px;flex-shrink:0">
+            <svg id="pie-income" width="140" height="140" viewBox="0 0 140 140"></svg>
+            <div class="pie-center-lbl">
+              <div class="pie-center-val" style="color:var(--green)" id="pie-inc-center">0</div>
+              <div class="pie-center-lbl2">บาท</div>
+            </div>
+          </div>
+          <div class="pie-legend" id="pie-inc-legend"></div>
+        </div>
+      </div>
+    </div>
+    <div class="fin-charts">
+      <div class="fin-chart-card">
+        <div class="fcc-title">📊 หมวดรายจ่ายสูงสุด</div>
+        <div class="fin-bar-wrap" id="fin-top-exp"></div>
+      </div>
+      <div class="fin-chart-card">
+        <div class="fcc-title">💹 อัตราการออม</div>
+        <div class="savings-ring-wrap">
+          <div class="sr-ring">
+            <svg width="120" height="120" viewBox="0 0 120 120">
+              <circle cx="60" cy="60" r="50" fill="none" stroke="var(--border)" stroke-width="13"/>
+              <circle id="sr-ring-fill" cx="60" cy="60" r="50" fill="none"
+                stroke="url(#srg)" stroke-width="13"
+                stroke-dasharray="314.16" stroke-dashoffset="314.16"
+                stroke-linecap="round" transform="rotate(-90 60 60)"
+                style="transition:stroke-dashoffset 1.2s cubic-bezier(.4,0,.2,1)"/>
+              <defs>
+                <linearGradient id="srg" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#10d97c"/>
+                  <stop offset="100%" stop-color="#00e5ff"/>
+                </linearGradient>
+              </defs>
+            </svg>
+            <div class="sr-ring-text">
+              <div class="sr-pct" id="sr-pct">0%</div>
+              <div class="sr-lbl">ออม</div>
+            </div>
+          </div>
+          <div class="sr-tips" id="sr-tips">ยังไม่มีข้อมูลรายรับ</div>
+        </div>
+      </div>
+    </div>
+    <div class="fin-chart-card">
+      <div class="fcc-title">📈 กราฟแท่งรายรับ-รายจ่ายรายเดือน</div>
+      <div style="overflow-x:auto;width:100%">
+        <svg id="fin-bar-chart" class="bar-chart-svg" style="width:100%;min-width:480px;height:260px;display:block"></svg>
+      </div>
+      <div style="display:flex;gap:16px;margin-top:10px;flex-wrap:wrap">
+        <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)"><div style="width:12px;height:12px;background:var(--green);border-radius:3px"></div>รายรับ</div>
+        <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)"><div style="width:12px;height:12px;background:var(--red);border-radius:3px"></div>รายจ่าย</div>
+        <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)"><div style="width:12px;height:12px;background:var(--p3);border-radius:3px"></div>คงเหลือ</div>
+      </div>
+    </div>
+  </div>
+  </div>
+</div>
+
+<div class="app-loading" id="app-loading" style="display:none">
+  <div class="app-loading-spin"></div>
+  <div class="app-loading-text" id="app-loading-text">กำลังโหลดข้อมูล...</div>
+</div>
+
+<div class="toast" id="toast-el"></div>
+
+<script src="./app.js" defer></script>
+</body>
+</html>
