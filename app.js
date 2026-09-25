@@ -81,6 +81,7 @@ function initSplash() {
     document.getElementById('arrow').classList.add('fire');
     setTimeout(() => {
       wrap.classList.add('shake');
+      wrap.classList.add('hit');
       document.getElementById('impactGlow').classList.add('burst');
     }, 330);
     setTimeout(() => {
@@ -94,7 +95,7 @@ function resetSplash() {
   const wrap = document.getElementById('targetWrap');
   const splash = document.getElementById('splash');
   const box = document.getElementById('authBox');
-  if (wrap) { wrap.classList.add('idle'); wrap.classList.remove('shake'); }
+  if (wrap) { wrap.classList.add('idle'); wrap.classList.remove('shake', 'hit'); }
   if (splash) splash.classList.remove('hidden');
   if (box) box.classList.remove('show');
   const glow = document.getElementById('impactGlow');

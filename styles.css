@@ -60,12 +60,33 @@ body{font-family:'Sarabun',sans-serif;background:var(--bg);color:var(--text);min
 .impact-glow{position:absolute;inset:-30px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,0.9),rgba(0,229,255,0.55) 35%,transparent 70%);opacity:0;transform:scale(.3);pointer-events:none}
 .impact-glow.burst{animation:targetBurst .55s ease-out forwards}
 @keyframes targetBurst{0%{opacity:0;transform:scale(.3)}35%{opacity:1;transform:scale(1.15)}100%{opacity:0;transform:scale(1.7)}}
-.arrow{position:absolute;left:-220px;top:50%;width:150px;height:8px;transform:translateY(-50%);opacity:0;pointer-events:none}
-.arrow.fire{animation:arrowShoot .38s cubic-bezier(.55,.05,.65,.95) forwards}
-@keyframes arrowShoot{0%{opacity:1;left:-220px}75%{opacity:1}100%{opacity:0;left:2px}}
+.arrow{position:absolute;left:-220px;top:50%;width:150px;height:8px;transform:translateY(-50%) rotate(0deg);opacity:0;pointer-events:none;filter:drop-shadow(0 0 4px rgba(0,229,255,.55))}
+.arrow.fire{animation:arrowShoot .38s cubic-bezier(.18,.75,.22,1) forwards}
+@keyframes arrowShoot{
+  0%{opacity:0;left:-220px;transform:translateY(-50%) rotate(-2deg)}
+  8%{opacity:1}
+  70%{opacity:1;left:-34px;transform:translateY(-50%) rotate(0deg)}
+  88%{opacity:1;left:-10px;transform:translateY(-50%) rotate(.5deg)}
+  100%{opacity:0;left:-3px;transform:translateY(-50%) rotate(.5deg)}
+}
 .arrow svg{width:100%;height:100%;display:block}
-.target-wrap.shake{animation:targetShake .32s ease}
-@keyframes targetShake{0%,100%{transform:translate(0,0)}20%{transform:translate(-3px,1px)}40%{transform:translate(3px,-1px)}60%{transform:translate(-2px,1px)}80%{transform:translate(2px,0)}}
+.target-wrap.shake{animation:targetShake .34s cubic-bezier(.2,.8,.3,1)}
+.target-wrap.hit .target-emoji{animation:targetImpact .42s cubic-bezier(.2,.8,.3,1)}
+@keyframes targetShake{
+  0%,100%{transform:translate(0,0) rotate(0)}
+  12%{transform:translate(-4px,1px) rotate(-2deg)}
+  28%{transform:translate(5px,-1px) rotate(2deg)}
+  46%{transform:translate(-4px,1px) rotate(-1.5deg)}
+  66%{transform:translate(2px,0) rotate(.8deg)}
+  84%{transform:translate(-1px,0) rotate(-.3deg)}
+}
+@keyframes targetImpact{
+  0%{transform:scale(1)}
+  18%{transform:scale(1.12)}
+  42%{transform:scale(.96)}
+  68%{transform:scale(1.03)}
+  100%{transform:scale(1)}
+}
 .remember-row{display:flex;align-items:center;gap:9px;margin:2px 0 4px;cursor:pointer;user-select:none}
 .remember-row input{display:none}
 .remember-box{width:18px;height:18px;border-radius:5px;border:1.5px solid rgba(255,255,255,0.25);background:rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .2s ease,border-color .2s ease}
