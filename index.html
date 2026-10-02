@@ -1,48 +1,380 @@
 <!DOCTYPE html>
-<html lang="th">
+<html lang="th" data-theme="light">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Arrow Dynamics Lab</title>
-<style>
-:root{color-scheme:dark;--bg:#071017;--panel:rgba(10,22,31,.88);--line:#213746;--text:#e9f6ff;--muted:#8ba6b7;--cyan:#52e0d0;--amber:#ffb24b;--red:#ff6578}*{box-sizing:border-box}body{margin:0;overflow:hidden;background:radial-gradient(circle at 70% 20%,#132d39,#071017 55%);font:14px/1.45 system-ui,sans-serif;color:var(--text)}canvas{display:block}.panel{position:fixed;z-index:4;top:18px;left:18px;width:min(340px,calc(100vw - 36px));max-height:calc(100vh - 36px);overflow:auto;padding:20px;border:1px solid rgba(122,193,215,.2);border-radius:18px;background:var(--panel);box-shadow:0 22px 70px rgba(0,0,0,.45);backdrop-filter:blur(18px)}h1{margin:0 0 4px;font-size:22px;letter-spacing:-.02em}.eyebrow{color:var(--cyan);font-size:11px;font-weight:800;letter-spacing:.18em;text-transform:uppercase}.sub{margin:0 0 18px;color:var(--muted)}.control{margin:12px 0}.control label{display:flex;justify-content:space-between;margin-bottom:6px;color:#bed2dd}.control output{color:var(--amber);font-variant-numeric:tabular-nums}input[type=range]{width:100%;accent-color:var(--cyan)}.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:16px 0}.stat{padding:10px;border:1px solid var(--line);border-radius:12px;background:rgba(0,0,0,.18)}.stat b{display:block;font-size:16px;color:#fff}.stat span{font-size:11px;color:var(--muted)}.actions{display:flex;gap:8px}.actions button{flex:1;padding:11px;border:0;border-radius:10px;font-weight:800;cursor:pointer}.launch{background:linear-gradient(135deg,var(--amber),#ff754b);color:#1e1005}.ghost{background:#17303e;color:var(--text);border:1px solid #284b5d!important}.formula{margin-top:14px;padding:10px;border-left:3px solid var(--cyan);color:#a9c1cf;font:12px/1.6 ui-monospace,monospace;background:rgba(0,0,0,.16)}.badge{position:fixed;z-index:3;right:18px;bottom:18px;padding:10px 14px;border:1px solid var(--line);border-radius:999px;background:rgba(8,19,27,.82);color:var(--muted);backdrop-filter:blur(12px)}.badge strong{color:var(--cyan)}@media(max-width:700px){.panel{top:10px;left:10px;max-height:54vh}.badge{font-size:11px}}
-</style>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Self Dev Tracker v4</title>
+<link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700;800&family=Sarabun:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<link rel="stylesheet" href="./styles.css">
 </head>
 <body>
-<aside class="panel">
-  <div class="eyebrow">3D physics simulation</div><h1>Arrow Dynamics Lab</h1><p class="sub">วิถีจริงพร้อมแรงสปริง แรงโน้มถ่วง และแรงต้านอากาศ</p>
-  <div class="control"><label>มุมยิง θ <output id="thetaOut">35°</output></label><input id="theta" type="range" min="5" max="75" value="35"></div>
-  <div class="control"><label>มุมทิศทาง φ <output id="azimuthOut">12°</output></label><input id="azimuth" type="range" min="-40" max="40" value="12"></div>
-  <div class="control"><label>ระยะง้างสาย x <output id="drawOut">0.70 m</output></label><input id="draw" type="range" min="0.30" max="0.85" value="0.70" step="0.01"></div>
-  <div class="control"><label>ค่าความแข็งสาย k <output id="springOut">520 N/m</output></label><input id="spring" type="range" min="180" max="800" value="520" step="10"></div>
-  <div class="control"><label>สัมประสิทธิ์แรงต้าน Cd <output id="dragOut">0.35</output></label><input id="drag" type="range" min="0.05" max="1.20" value="0.35" step="0.01"></div>
-  <div class="control"><label>ลมด้านข้าง <output id="windOut">1.5 m/s</output></label><input id="wind" type="range" min="-8" max="8" value="1.5" step="0.1"></div>
-  <div class="grid"><div class="stat"><b id="speedStat">0.0 m/s</b><span>ความเร็วเริ่มต้น v₀</span></div><div class="stat"><b id="rangeStat">0.0 m</b><span>ระยะทางแนวราบ</span></div><div class="stat"><b id="timeStat">0.00 s</b><span>เวลาเคลื่อนที่</span></div><div class="stat"><b id="pitchStat">0.0°</b><span>shaft pitch</span></div></div>
-  <div class="actions"><button class="launch" id="launch">ปล่อยลูกศร</button><button class="ghost" id="pause">หยุดชั่วคราว</button><button class="ghost" id="reset">รีเซ็ต</button></div>
-  <div class="formula">E = η(½kx²) → ½m_eff v₀²<br>F_drag = −½ρCdA|v_rel|v_rel<br>RK4: a = g + F_drag/m, &nbsp;g = 9.81 m/s²</div>
-</aside>
-<div class="badge"><strong>● LIVE</strong> หัวลูกศรจัดแนวตาม velocity vector ทุกเฟรม</div>
-<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
-<script>
-(function(){
-'use strict';
-var scene=new THREE.Scene();scene.fog=new THREE.FogExp2(0x071017,.006);var camera=new THREE.PerspectiveCamera(48,innerWidth/innerHeight,.1,1000);camera.up.set(0,1,0);var renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(innerWidth,innerHeight);renderer.shadowMap.enabled=true;document.body.prepend(renderer.domElement);
-scene.add(new THREE.HemisphereLight(0xbfeeff,0x183021,2.2));var sun=new THREE.DirectionalLight(0xffe4bd,3);sun.position.set(-20,35,-15);sun.castShadow=true;scene.add(sun);var ground=new THREE.Mesh(new THREE.PlaneGeometry(500,260),new THREE.MeshStandardMaterial({color:0x0b1a20,roughness:.92,metalness:.05}));ground.rotation.x=-Math.PI/2;ground.receiveShadow=true;scene.add(ground);var grid=new THREE.GridHelper(500,100,0x245568,0x183341);grid.position.y=.01;scene.add(grid);
-function makeArrow(){var g=new THREE.Group(),shaft=new THREE.Mesh(new THREE.CylinderGeometry(.035,.035,1.4,12),new THREE.MeshStandardMaterial({color:0xd8a45e,roughness:.55}));shaft.rotation.z=-Math.PI/2;shaft.castShadow=true;g.add(shaft);var head=new THREE.Mesh(new THREE.ConeGeometry(.13,.42,16),new THREE.MeshStandardMaterial({color:0xff6578,metalness:.65,roughness:.22}));head.rotation.z=-Math.PI/2;head.position.x=.91;head.castShadow=true;g.add(head);for(var s=-1;s<=1;s+=2){var feather=new THREE.Mesh(new THREE.BoxGeometry(.28,.16,.012),new THREE.MeshStandardMaterial({color:s>0?0x52e0d0:0xffb24b}));feather.position.x=-.57;feather.rotation.x=s*Math.PI/4;g.add(feather)}return g}
-var arrow=makeArrow();scene.add(arrow);var bowCurve=new THREE.CatmullRomCurve3([new THREE.Vector3(0,1.7,0),new THREE.Vector3(.22,.9,0),new THREE.Vector3(0,0,0)]);var bow=new THREE.Mesh(new THREE.TubeGeometry(bowCurve,32,.045,8,false),new THREE.MeshStandardMaterial({color:0xffb24b,roughness:.5}));bow.position.y=1.45;scene.add(bow);var bowLower=bow.clone();bowLower.scale.y=-1;bowLower.position.y=1.45;scene.add(bowLower);var stringGeo=new THREE.BufferGeometry(),bowString=new THREE.Line(stringGeo,new THREE.LineBasicMaterial({color:0xe9f6ff}));scene.add(bowString);var pathLine=new THREE.Line(new THREE.BufferGeometry(),new THREE.LineBasicMaterial({color:0x52e0d0,transparent:true,opacity:.65}));scene.add(pathLine);var trailLine=new THREE.Line(new THREE.BufferGeometry(),new THREE.LineBasicMaterial({color:0xffffff,transparent:true,opacity:.95}));scene.add(trailLine);
-var launchPos=new THREE.Vector3(0,1.45,0),trajectory=[],velocities=[],dt=.004,phase='ready',startMs=0,pauseAt=0,paused=false,launchDir=new THREE.Vector3(1,0,0),v0=0,releaseDurationMs=15,playbackRate=.35;
-var el={theta:document.getElementById('theta'),azimuth:document.getElementById('azimuth'),draw:document.getElementById('draw'),spring:document.getElementById('spring'),drag:document.getElementById('drag'),wind:document.getElementById('wind')};
-function params(){return{theta:+el.theta.value*Math.PI/180,phi:+el.azimuth.value*Math.PI/180,x:+el.draw.value,k:+el.spring.value,Cd:+el.drag.value,wind:+el.wind.value,m:.025,rho:1.225,A:Math.PI*Math.pow(.008/2,2),eta:.82,meff:.029}}
-function updateString(nock){stringGeo.setFromPoints([new THREE.Vector3(0,3.15,0),nock,new THREE.Vector3(0,-.25,0)]);stringGeo.attributes.position.needsUpdate=true}
-function accel(vel,p){var rel=vel.clone();rel.z-=p.wind;var speed=rel.length(),a=new THREE.Vector3(0,-9.81,0);if(speed>1e-9)a.addScaledVector(rel,-.5*p.rho*p.Cd*p.A*speed/p.m);return a}
-function sum4(a,b,c,d,scale){return a.clone().addScaledVector(b,2).addScaledVector(c,2).add(d).multiplyScalar(scale)}
-function rk4(pos,vel,p){var k1p=vel.clone(),k1v=accel(vel,p);var k2p=vel.clone().addScaledVector(k1v,dt*.5),k2v=accel(vel.clone().addScaledVector(k1v,dt*.5),p);var k3p=vel.clone().addScaledVector(k2v,dt*.5),k3v=accel(vel.clone().addScaledVector(k2v,dt*.5),p);var k4p=vel.clone().addScaledVector(k3v,dt),k4v=accel(vel.clone().addScaledVector(k3v,dt),p);return{pos:pos.clone().add(sum4(k1p,k2p,k3p,k4p,dt/6)),vel:vel.clone().add(sum4(k1v,k2v,k3v,k4v,dt/6))}}
-function calculate(){var p=params();v0=Math.sqrt(p.eta*p.k*p.x*p.x/p.meff);releaseDurationMs=1000*Math.PI*.5*Math.sqrt(p.meff/(p.eta*p.k));launchDir.set(Math.cos(p.theta)*Math.cos(p.phi),Math.sin(p.theta),Math.cos(p.theta)*Math.sin(p.phi)).normalize();trajectory=[launchPos.clone()];velocities=[launchDir.clone().multiplyScalar(v0)];var pos=trajectory[0].clone(),vel=velocities[0].clone();for(var i=0;i<Math.ceil(30/dt);i++){var oldPos=pos.clone(),oldVel=vel.clone(),step=rk4(pos,vel,p);pos=step.pos;vel=step.vel;if(pos.y<=0){var fraction=oldPos.y/(oldPos.y-pos.y);pos=oldPos.clone().lerp(pos,fraction);vel=oldVel.clone().lerp(vel,fraction);pos.y=0;trajectory.push(pos);velocities.push(vel);break}trajectory.push(pos.clone());velocities.push(vel.clone())}pathLine.geometry.dispose();pathLine.geometry=new THREE.BufferGeometry().setFromPoints(trajectory);pathLine.geometry.setDrawRange(0,0);trailLine.geometry.dispose();trailLine.geometry=new THREE.BufferGeometry().setFromPoints(trajectory);trailLine.geometry.setDrawRange(0,1);var end=trajectory[trajectory.length-1],maxY=trajectory.reduce(function(m,q){return Math.max(m,q.y)},0);document.getElementById('speedStat').textContent=v0.toFixed(1)+' m/s';document.getElementById('rangeStat').textContent=Math.hypot(end.x,end.z).toFixed(1)+' m';document.getElementById('timeStat').textContent=((trajectory.length-1)*dt).toFixed(2)+' s';var center=new THREE.Vector3(end.x*.46,maxY*.32,end.z*.46),span=Math.max(32,Math.hypot(end.x,end.z));camera.position.set(center.x-span*.38,Math.max(12,span*.30),center.z-span*.62);camera.lookAt(center);reset(false)}
-function reset(recalc){if(recalc!==false)calculate();phase='ready';paused=false;document.getElementById('pause').textContent='หยุดชั่วคราว';arrow.position.copy(launchPos).addScaledVector(launchDir,-params().x);arrow.quaternion.setFromUnitVectors(new THREE.Vector3(1,0,0),launchDir);updateString(arrow.position.clone());pathLine.geometry.setDrawRange(0,0);trailLine.geometry.setDrawRange(0,1);document.getElementById('pitchStat').textContent=(+el.theta.value).toFixed(1)+'°'}
-function launch(){calculate();phase='release';startMs=performance.now();paused=false}
-function animate(now){requestAnimationFrame(animate);if(!paused){if(phase==='release'){var elapsed=(now-startMs)*playbackRate,a=Math.min(1,elapsed/releaseDurationMs),compression=Math.cos(a*Math.PI*.5);arrow.position.copy(launchPos).addScaledVector(launchDir,-params().x*compression);updateString(arrow.position.clone());if(a>=1){phase='flight';startMs=now;updateString(launchPos.clone())}}else if(phase==='flight'){var index=Math.min(trajectory.length-1,Math.floor((now-startMs)/1000*playbackRate/dt)),pos=trajectory[index],vel=velocities[index],dir=vel.clone().normalize();arrow.position.copy(pos);arrow.quaternion.setFromUnitVectors(new THREE.Vector3(1,0,0),dir);pathLine.geometry.setDrawRange(0,index+1);trailLine.geometry.setDrawRange(Math.max(0,index-180),Math.min(181,index+1));var pitch=Math.atan2(vel.y,Math.hypot(vel.x,vel.z))*180/Math.PI;document.getElementById('pitchStat').textContent=pitch.toFixed(1)+'°';document.getElementById('timeStat').textContent=(index*dt).toFixed(2)+' s';if(index===trajectory.length-1)phase='landed'}}renderer.render(scene,camera)}
-Object.keys(el).forEach(function(key){var input=el[key],out=document.getElementById(key+'Out');input.addEventListener('input',function(){var suffix=key==='theta'||key==='azimuth'?'°':key==='draw'?' m':key==='spring'?' N/m':key==='wind'?' m/s':'';out.textContent=(key==='draw'||key==='drag'||key==='wind'?(+input.value).toFixed(key==='drag'?2:key==='draw'?2:1):input.value)+suffix;calculate()})});document.getElementById('launch').onclick=launch;document.getElementById('reset').onclick=function(){reset(true)};document.getElementById('pause').onclick=function(){paused=!paused;if(paused){pauseAt=performance.now();this.textContent='เล่นต่อ'}else{startMs+=performance.now()-pauseAt;this.textContent='หยุดชั่วคราว'}};addEventListener('resize',function(){camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});calculate();animate(performance.now());
-})();
-</script>
+
+<div id="auth-screen">
+  <div class="splash" id="splash">
+    <div class="target-wrap idle" id="targetWrap" role="button" tabindex="0" aria-label="เริ่มแอนิเมชันวิถีลูกศร">
+      <canvas id="splashCanvas" aria-hidden="true"></canvas>
+      <div class="flight-hud" aria-hidden="true">
+        <span>g = 9.81 m/s²</span>
+        <span>drag + crosswind</span>
+        <span>RK4</span>
+      </div>
+      <div class="flight-cta">ปล่อยลูกศร</div>
+    </div>
+    <p class="splash-hint">แตะเพื่อจำลองวิถีลูกศรก่อนเข้าสู่ระบบ</p>
+  </div>
+  <div class="auth-box" id="authBox">
+    <div class="auth-logo">
+      <div class="auth-gem">🎯</div>
+      <div class="auth-title">Self Dev Tracker</div>
+      <div class="auth-sub">ติดตามการพัฒนาตนเอง + การเงิน</div>
+    </div>
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="tab-login" onclick="switchTab('login')">เข้าสู่ระบบ</button>
+      <button class="auth-tab" id="tab-register" onclick="switchTab('register')">สมัครสมาชิก</button>
+    </div>
+    <div id="form-login" class="auth-form">
+      <div class="auth-err" id="login-err">⚠️ <span id="login-err-msg"></span></div>
+      <div class="auth-field">
+        <label>Email</label>
+        <input type="email" id="login-email" placeholder="your@email.com" autocomplete="email">
+      </div>
+      <div class="auth-field">
+        <label>Password</label>
+        <div class="pw-wrap">
+          <input type="password" id="login-pw" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+          <button class="pw-eye" onclick="togglePw('login-pw',this)">👁️</button>
+        </div>
+      </div>
+            <label class="remember-row">
+        <input type="checkbox" id="login-remember">
+        <span class="remember-box">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#06122b" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        </span>
+        <span class="rlabel">จดจำฉันไว้ — เข้าสู่ระบบอัตโนมัติครั้งหน้า</span>
+      </label>
+      <button class="auth-btn" id="login-btn" onclick="doLogin()">เข้าสู่ระบบ</button>
+    </div>
+    <div id="form-register" class="auth-form" style="display:none">
+      <div class="auth-err" id="reg-err">⚠️ <span id="reg-err-msg"></span></div>
+      <div class="auth-ok" id="reg-ok">✅ สมัครสมาชิกสำเร็จ! กรุณาเข้าสู่ระบบ</div>
+      <div class="auth-field">
+        <label>ชื่อ-นามสกุล</label>
+        <input type="text" id="reg-name" placeholder="กรอกชื่อของคุณ">
+      </div>
+      <div class="auth-field">
+        <label>Email</label>
+        <input type="email" id="reg-email" placeholder="your@email.com" autocomplete="email">
+      </div>
+      <div class="auth-field">
+        <label>Password (อย่างน้อย 6 ตัวอักษร)</label>
+        <div class="pw-wrap">
+          <input type="password" id="reg-pw" placeholder="••••••••" onkeydown="if(event.key==='Enter')doRegister()">
+          <button class="pw-eye" onclick="togglePw('reg-pw',this)">👁️</button>
+        </div>
+      </div>
+      <button class="auth-btn" id="reg-btn" onclick="doRegister()">สมัครสมาชิก</button>
+    </div>
+    <div class="auth-loading" id="auth-loading">
+      <span class="spin"></span> กำลังดำเนินการ...
+    </div>
+  </div>
+</div>
+
+<div id="app">
+  <header class="hdr">
+    <div class="hdr-inner">
+      <div class="hdr-brand">
+        <div class="hdr-gem">🎯</div>
+        <div>
+          <div class="hdr-title">Self Dev Tracker</div>
+          <div class="hdr-sub" id="hdr-greeting">ยินดีต้อนรับ</div>
+        </div>
+      </div>
+      <div class="hdr-right">
+        <nav class="nav">
+          <button class="nav-btn" onclick="go('settings')">⚙️ ตั้งค่า</button>
+          <button class="nav-btn" onclick="go('log')">📋 บันทึก</button>
+          <button class="nav-btn" onclick="go('dashboard')">📊 Dashboard</button>
+          <button class="nav-btn active" onclick="go('finance')">💰 การเงิน</button>
+        </nav>
+        <div class="user-chip">
+          <div class="uc-avatar" id="uc-avatar">?</div>
+          <span class="uc-name" id="uc-name">-</span>
+        </div>
+        <button class="logout-btn" onclick="doLogout()" title="ออกจากระบบ">🚪</button>
+        <button class="theme-btn" id="theme-btn" onclick="toggleTheme()">🌙</button>
+      </div>
+    </div>
+    <div class="sync-bar">
+      <div class="sync-dot" id="sync-dot"></div>
+      <span id="sync-text">เชื่อมต่อ Supabase</span>
+    </div>
+  </header>
+
+  <div id="page-settings" class="page">
+  <div class="wrap">
+    <div class="card">
+      <div class="card-hdr"><div class="card-title">👤 ข้อมูลของฉัน</div></div>
+      <div class="card-body">
+        <div class="info-grid">
+          <div class="field"><label>ชื่อ-นามสกุล</label><input type="text" id="s-name" placeholder="กรอกชื่อ"></div>
+          <div class="field">
+            <label>ชั้น / ตำแหน่ง</label>
+            <select id="s-class">
+              <option value="">-- เลือก --</option>
+              <option>ม.1</option><option>ม.2</option><option>ม.3</option>
+              <option>ม.4</option><option>ม.5</option><option>ม.6</option>
+              <option>อื่นๆ</option>
+            </select>
+          </div>
+          <div class="field"><label>เดือน/ปี</label><input type="month" id="s-month"></div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-hdr">
+        <div class="card-title">🎯 จัดการเป้าหมาย</div>
+        <button class="btn btn-primary btn-sm" onclick="addGoal()">+ เพิ่มเป้าหมาย</button>
+      </div>
+      <div class="card-body">
+        <p style="font-size:12.5px;color:var(--muted);margin-bottom:14px">ตั้งชื่อ ไอคอน และสีของแต่ละเป้าหมาย (สูงสุด 10 ข้อ)</p>
+        <div class="goals-list" id="goals-list"></div>
+        <div style="display:flex;align-items:center;gap:12px;margin-top:14px">
+          <button class="btn btn-primary" onclick="saveSettings()">☁️ บันทึกและซิงค์</button>
+          <span class="save-flash" id="save-flash">✅ บันทึกแล้ว!</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  </div>
+
+  <div id="page-log" class="page">
+  <div class="wrap">
+    <div class="card">
+      <div class="card-hdr">
+        <div class="card-title">📅 ตารางบันทึกประจำวัน <span class="badge badge-blue" id="log-badge">0/0 วัน</span></div>
+        <button class="btn btn-primary btn-sm" onclick="syncRows()">☁️ ซิงค์</button>
+      </div>
+      <div class="tbl-wrap">
+        <table><thead id="log-thead"></thead><tbody id="log-tbody"></tbody></table>
+      </div>
+    </div>
+  </div>
+  </div>
+
+  <div id="page-dashboard" class="page">
+  <div class="wrap">
+    <div class="overall-hero">
+      <div>
+        <div class="oh-lbl">ความสำเร็จโดยรวม (ทั้งเดือน)</div>
+        <div><span class="oh-val" id="d-overall">0</span><span class="oh-unit">%</span></div>
+      </div>
+      <div class="oh-right">
+        <div class="oh-rlbl">วันที่บันทึก</div>
+        <div class="oh-rval"><span id="d-days">0</span> <span class="oh-accent">/ <span id="d-totaldays">31</span> วัน 🔥</span></div>
+      </div>
+    </div>
+    <div id="d-msg"></div>
+    <div class="sec-title">📊 KPI รายเป้าหมาย</div>
+    <div class="kpi-grid" id="d-kpi"></div>
+    <div class="sec-title">📈 Progress Bar</div>
+    <div class="prog-card" id="d-prog"></div>
+    <div class="sec-title">📅 ความสำเร็จรายวัน (%)</div>
+    <div class="chart-card">
+      <div class="chart-title">📆 กราฟความสำเร็จรายวัน — % ของเป้าหมายที่ทำได้ในแต่ละวัน</div>
+      <div class="daily-pct-wrap">
+        <div class="daily-pct-row" id="d-daily-pct"></div>
+      </div>
+    </div>
+    <div class="charts-row">
+      <div class="chart-card">
+        <div class="chart-title">📊 กราฟแท่ง — ความสำเร็จแต่ละเป้าหมาย (ทั้งเดือน)</div>
+        <div class="bar-chart" id="d-bar"></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">🍩 วงล้อความสำเร็จรวม</div>
+        <div class="donut-wrap">
+          <div style="position:relative;width:135px;height:135px">
+            <svg width="135" height="135" viewBox="0 0 135 135">
+              <circle cx="67.5" cy="67.5" r="50" fill="none" stroke="var(--border)" stroke-width="17"/>
+              <circle id="d-donut" cx="67.5" cy="67.5" r="50" fill="none"
+                stroke="url(#dg)" stroke-width="17"
+                stroke-dasharray="314.16" stroke-dashoffset="314.16"
+                stroke-linecap="round" transform="rotate(-90 67.5 67.5)"
+                style="transition:stroke-dashoffset 1s cubic-bezier(.4,0,.2,1)"/>
+              <defs>
+                <linearGradient id="dg" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stop-color="#1a4a9e"/>
+                  <stop offset="100%" stop-color="#00e5ff"/>
+                </linearGradient>
+              </defs>
+            </svg>
+            <div class="donut-center">
+              <div class="donut-pct-text" id="d-dpct">0%</div>
+              <div class="donut-sub-text">สำเร็จ</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  </div>
+
+  <div id="page-finance" class="page">
+  <div class="wrap">
+    <div class="fin-hero">
+      <div style="position:relative;z-index:1">
+        <div class="fh-lbl">ยอดคงเหลือสุทธิ</div>
+        <div><span class="fh-balance" id="fh-balance">0.00</span> <span style="font-size:16px;color:rgba(255,255,255,0.6)">บาท</span></div>
+        <div style="font-size:12px;color:rgba(255,255,255,0.4);margin-top:5px"><span id="fh-tx-count">0</span> รายการ</div>
+      </div>
+      <div class="fh-stats">
+        <div class="fh-stat">
+          <div class="fhs-lbl">💚 รายรับรวม</div>
+          <div class="fhs-val inc" id="fh-income">0.00</div>
+          <div class="fhs-sub" id="fh-income-count">0 รายการ</div>
+        </div>
+        <div class="fh-stat">
+          <div class="fhs-lbl">❤️ รายจ่ายรวม</div>
+          <div class="fhs-val exp" id="fh-expense">0.00</div>
+          <div class="fhs-sub" id="fh-expense-count">0 รายการ</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="fin-toolbar">
+      <div class="fin-month-filter" id="fin-month-filter">
+        <button class="fmf-btn active" data-filter="all" onclick="setFinFilter('all',this)">ทั้งหมด</button>
+      </div>
+      <input type="text" class="fin-search" id="fin-search" placeholder="🔍 ค้นหา..." oninput="renderFinance()">
+    </div>
+
+    <div class="fin-layout">
+      <div class="fin-form-card">
+        <div class="card-hdr"><div class="card-title">➕ เพิ่มรายการ</div></div>
+        <div class="fin-form-body">
+          <div class="type-toggle">
+            <button class="type-btn sel-in" id="btn-in" onclick="setType('income')">💚 รายรับ</button>
+            <button class="type-btn" id="btn-out" onclick="setType('expense')">❤️ รายจ่าย</button>
+          </div>
+          <div class="field"><label>ชื่อรายการ</label><input type="text" id="f-name" placeholder="เช่น ค่าขนม, เงินเดือน"></div>
+          <div class="g2">
+            <div class="field"><label>จำนวน (บาท)</label><input type="number" id="f-amt" placeholder="0.00" min="0" step="0.01"></div>
+            <div class="field"><label>วันที่</label><input type="date" id="f-date"></div>
+          </div>
+          <div class="field">
+            <label>หมวดหมู่</label>
+            <select id="f-cat">
+              <optgroup label="รายจ่าย">
+                <option>🍜 อาหาร</option><option>🚌 เดินทาง</option>
+                <option>📚 การศึกษา</option><option>🎮 ความบันเทิง</option>
+                <option>👕 เสื้อผ้า</option><option>🛒 ของใช้</option>
+                <option>💡 ค่าสาธารณูปโภค</option>
+              </optgroup>
+              <optgroup label="รายรับ">
+                <option>💼 เงินเดือน</option><option>🎁 โบนัส</option>
+                <option>🔧 ค่าจ้าง</option><option>📈 ลงทุน</option>
+              </optgroup>
+              <option>📌 อื่นๆ</option>
+            </select>
+          </div>
+          <div class="field"><label>หมายเหตุ</label><textarea id="f-note" placeholder="รายละเอียดเพิ่มเติม..."></textarea></div>
+          <button class="btn btn-success" onclick="addTx()" style="width:100%;justify-content:center;padding:12px">+ เพิ่มและซิงค์</button>
+        </div>
+      </div>
+      <div class="fin-list-card">
+        <div class="fin-list-header">
+          <div class="card-title">📋 รายการธุรกรรม</div>
+          <span class="badge badge-blue" id="fin-list-count">0 รายการ</span>
+        </div>
+        <div class="fin-list-body" id="fin-list"></div>
+      </div>
+    </div>
+
+    <div class="sec-title">📊 วิเคราะห์งบการเงิน</div>
+    <div class="fin-charts">
+      <div class="fin-chart-card">
+        <div class="fcc-title">🥧 รายจ่ายแยกหมวดหมู่</div>
+        <div class="pie-row">
+          <div class="pie-svg-wrap" style="width:140px;height:140px;flex-shrink:0">
+            <svg id="pie-expense" width="140" height="140" viewBox="0 0 140 140"></svg>
+            <div class="pie-center-lbl">
+              <div class="pie-center-val" style="color:var(--red)" id="pie-exp-center">0</div>
+              <div class="pie-center-lbl2">บาท</div>
+            </div>
+          </div>
+          <div class="pie-legend" id="pie-exp-legend"></div>
+        </div>
+      </div>
+      <div class="fin-chart-card">
+        <div class="fcc-title">🟢 รายรับแยกหมวดหมู่</div>
+        <div class="pie-row">
+          <div class="pie-svg-wrap" style="width:140px;height:140px;flex-shrink:0">
+            <svg id="pie-income" width="140" height="140" viewBox="0 0 140 140"></svg>
+            <div class="pie-center-lbl">
+              <div class="pie-center-val" style="color:var(--green)" id="pie-inc-center">0</div>
+              <div class="pie-center-lbl2">บาท</div>
+            </div>
+          </div>
+          <div class="pie-legend" id="pie-inc-legend"></div>
+        </div>
+      </div>
+    </div>
+    <div class="fin-charts">
+      <div class="fin-chart-card">
+        <div class="fcc-title">📊 หมวดรายจ่ายสูงสุด</div>
+        <div class="fin-bar-wrap" id="fin-top-exp"></div>
+      </div>
+      <div class="fin-chart-card">
+        <div class="fcc-title">💹 อัตราการออม</div>
+        <div class="savings-ring-wrap">
+          <div class="sr-ring">
+            <svg width="120" height="120" viewBox="0 0 120 120">
+              <circle cx="60" cy="60" r="50" fill="none" stroke="var(--border)" stroke-width="13"/>
+              <circle id="sr-ring-fill" cx="60" cy="60" r="50" fill="none"
+                stroke="url(#srg)" stroke-width="13"
+                stroke-dasharray="314.16" stroke-dashoffset="314.16"
+                stroke-linecap="round" transform="rotate(-90 60 60)"
+                style="transition:stroke-dashoffset 1.2s cubic-bezier(.4,0,.2,1)"/>
+              <defs>
+                <linearGradient id="srg" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#10d97c"/>
+                  <stop offset="100%" stop-color="#00e5ff"/>
+                </linearGradient>
+              </defs>
+            </svg>
+            <div class="sr-ring-text">
+              <div class="sr-pct" id="sr-pct">0%</div>
+              <div class="sr-lbl">ออม</div>
+            </div>
+          </div>
+          <div class="sr-tips" id="sr-tips">ยังไม่มีข้อมูลรายรับ</div>
+        </div>
+      </div>
+    </div>
+    <div class="fin-chart-card">
+      <div class="fcc-title">📈 กราฟแท่งรายรับ-รายจ่ายรายเดือน</div>
+      <div style="overflow-x:auto;width:100%">
+        <svg id="fin-bar-chart" class="bar-chart-svg" style="width:100%;min-width:480px;height:260px;display:block"></svg>
+      </div>
+      <div style="display:flex;gap:16px;margin-top:10px;flex-wrap:wrap">
+        <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)"><div style="width:12px;height:12px;background:var(--green);border-radius:3px"></div>รายรับ</div>
+        <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)"><div style="width:12px;height:12px;background:var(--red);border-radius:3px"></div>รายจ่าย</div>
+        <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)"><div style="width:12px;height:12px;background:var(--p3);border-radius:3px"></div>คงเหลือ</div>
+      </div>
+    </div>
+  </div>
+  </div>
+</div>
+
+<div class="app-loading" id="app-loading" style="display:none">
+  <div class="app-loading-spin"></div>
+  <div class="app-loading-text" id="app-loading-text">กำลังโหลดข้อมูล...</div>
+</div>
+
+<div class="toast" id="toast-el"></div>
+
+<script src="./app.js" defer></script>
 </body>
 </html>
