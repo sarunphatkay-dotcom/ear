@@ -249,11 +249,11 @@ async function doLogin() {
   }
   setAuthLoading(true);
   try {
-    const { data, error } = await sb.rpc('sdt_login', { p_email: email, p_password: pw });
+    const { data, error } = await sb.rpc('sdt_login_v2', { p_email: email, p_password: pw });
     if (error) { showAuthErr('login', 'เชื่อมต่อไม่ได้ กรุณาลองใหม่'); return; }
     if (data.error) { showAuthErr('login', data.error); return; }
     const remember = document.getElementById('login-remember').checked;
-    await onLoginSuccess(data.user, remember);
+    await onLoginSuccess({ ...data.user, token: data.token }, remember);
   } catch(e) {
     showAuthErr('login', 'เชื่อมต่อไม่ได้ กรุณาลองใหม่');
   } finally {
@@ -270,7 +270,7 @@ async function doRegister() {
   if (!name || !email || !pw) { showAuthErr('reg', 'กรุณากรอกข้อมูลให้ครบ'); return; }
   setAuthLoading(true);
   try {
-    const { data, error } = await sb.rpc('sdt_register', { p_name: name, p_email: email, p_password: pw });
+    const { data, error } = await sb.rpc('sdt_register_v2', { p_name: name, p_email: email, p_password: pw });
     if (error) { showAuthErr('reg', 'เชื่อมต่อไม่ได้ กรุณาลองใหม่'); return; }
     if (data.error) { showAuthErr('reg', data.error); return; }
     document.getElementById('reg-ok').classList.add('show');
@@ -307,8 +307,7 @@ async function onLoginSuccess(user, remember) {
 async function loadUserData() {
   showAppLoading('กำลังโหลดข้อมูลจาก Supabase...');
   try {
-    const uid = currentUser.uid;
-    const { data, error } = await sb.rpc('sdt_get_user_data', { p_uid: uid });
+    const { data, error } = await sb.rpc('sdt_get_user_data_v2', { p_token: currentUser.token, p_limit: 1000 });
     if (error) throw new Error(error.message);
     appData.txs = data.txs || [];
     appData.rows = data.rows || {};
@@ -322,6 +321,13 @@ async function loadUserData() {
     });
   } catch(e) {
     hideAppLoading();
+    if (/unauthorized/i.test(e.message || '')) {
+      // session expired or revoked: force sign-in again
+      localStorage.removeItem('sdtUser');
+      sessionStorage.removeItem('sdtUser');
+      location.reload();
+      return;
+    }
     setSyncStatus('error', 'โหลดข้อมูลไม่สำเร็จ');
     toast('⚠️ โหลดข้อมูลไม่สำเร็จ', '#ff5a72');
   }
@@ -347,6 +353,7 @@ function hideAppLoading() {
 
 function doLogout() {
   if (!confirm('ออกจากระบบ?')) return;
+  if (currentUser && currentUser.token) sb.rpc('sdt_logout_v2', { p_token: currentUser.token });
   currentUser = null;
   appData = { info:{}, goals:DEFAULT_GOALS, rows:{}, txs:[] };
   localStorage.removeItem('sdtUser');
@@ -421,8 +428,8 @@ async function saveSettings() {
   appData.info.cls = document.getElementById('s-class').value;
   appData.info.month = document.getElementById('s-month').value || currentMonth();
   try {
-    await api('sdt_save_goals', { p_uid:currentUser.uid, p_goals:appData.goals });
-    await api('sdt_save_info', { p_uid:currentUser.uid, p_info:appData.info });
+    await api('sdt_save_goals_v2', { p_token:currentUser.token, p_goals:appData.goals });
+    await api('sdt_save_info_v2', { p_token:currentUser.token, p_info:appData.info });
     const fl = document.getElementById('save-flash');
     fl.classList.add('show');
     setTimeout(() => fl.classList.remove('show'), 2000);
@@ -481,7 +488,7 @@ function toggle(day, goal) {
 }
 async function syncRows() {
   try {
-    await api('sdt_save_rows', { p_uid:currentUser.uid, p_rows:appData.rows });
+    await api('sdt_save_rows_v2', { p_token:currentUser.token, p_rows:appData.rows });
     toast('☁️ ซิงค์ข้อมูลบันทึกแล้ว!');
   } catch(e) {
     toast('⚠️ ซิงค์ไม่สำเร็จ', '#ff5a72');
@@ -576,7 +583,7 @@ async function addTx() {
   document.getElementById('f-amt').value = '';
   document.getElementById('f-note').value = '';
   try {
-    await api('sdt_add_tx', { p_uid:currentUser.uid, p_tx:tx });
+    await api('sdt_add_tx_v2', { p_token:currentUser.token, p_tx:tx });
     toast('✅ เพิ่มและซิงค์แล้ว!');
   } catch(e) {
     toast('⚠️ บันทึก local แต่ซิงค์ไม่สำเร็จ', '#ffb547');
@@ -586,7 +593,7 @@ async function deleteTx(id) {
   appData.txs = appData.txs.filter(t => t.id !== id);
   renderFinance();
   try {
-    await api('sdt_delete_tx', { p_uid:currentUser.uid, p_id:id });
+    await api('sdt_delete_tx_v2', { p_token:currentUser.token, p_id:id });
     toast('🗑️ ลบและซิงค์แล้ว');
   } catch(e) {
     toast('⚠️ ลบ local แต่ซิงค์ไม่สำเร็จ', '#ffb547');
@@ -793,6 +800,7 @@ window.onload = () => {
   if (saved) {
     try {
       currentUser = JSON.parse(saved);
+      if (!currentUser.token) throw new Error('legacy session');
       showApp();
       loadUserData();
     } catch(e) {
