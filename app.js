@@ -17,6 +17,12 @@ let finType = 'income';
 let finFilter = 'all';
 let theme = localStorage.getItem('theme') || 'light';
 
+
+// Escape user-controlled text before inserting into HTML
+function esc(v){
+  return String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
 async function api(fnName, params) {
   setSyncStatus('loading', 'กำลังซิงค์...');
   try {
@@ -380,8 +386,8 @@ function renderGoalsList() {
     const row = document.createElement('div');
     row.className = 'goal-row';
     row.innerHTML = `
-      <input class="goal-emoji-input" value="${g.emoji}" maxlength="2" oninput="appData.goals[${i}].emoji=this.value">
-      <input class="goal-name-input" value="${g.name}" placeholder="ชื่อเป้าหมาย" oninput="appData.goals[${i}].name=this.value">
+      <input class="goal-emoji-input" value="${esc(g.emoji)}" maxlength="2" oninput="appData.goals[${i}].emoji=this.value">
+      <input class="goal-name-input" value="${esc(g.name)}" placeholder="ชื่อเป้าหมาย" oninput="appData.goals[${i}].name=this.value">
       <div class="color-pick" id="cp-${i}"></div>
       <button class="btn btn-danger" onclick="removeGoal(${i})">✕</button>`;
     list.appendChild(row);
@@ -441,7 +447,7 @@ function pctColor(p) {
 function renderLog() {
   const goals = appData.goals, days = getDays();
   document.getElementById('log-thead').innerHTML = `<tr>
-    <th>วันที่</th>${goals.map(g=>`<th>${g.emoji} ${g.name}</th>`).join('')}<th>สำเร็จ</th><th>%</th></tr>`;
+    <th>วันที่</th>${goals.map(g=>`<th>${esc(g.emoji)} ${esc(g.name)}</th>`).join('')}<th>สำเร็จ</th><th>%</th></tr>`;
   const tbody = document.getElementById('log-tbody');
   tbody.innerHTML = '';
   let completeCount = 0;
@@ -512,14 +518,14 @@ function renderDash() {
   document.getElementById('d-msg').innerHTML = msg;
   document.getElementById('d-kpi').innerHTML = goals.map((g,i)=>`
     <div class="kpi-card" style="--kc:${g.color}">
-      <div class="kpi-icon">${g.emoji}</div>
-      <div class="kpi-lbl">${g.name}</div>
+      <div class="kpi-icon">${esc(g.emoji)}</div>
+      <div class="kpi-lbl">${esc(g.name)}</div>
       <div class="kpi-val">${s.counts[i]}</div>
       <div class="kpi-sub">จาก ${s.days} วัน (${s.pcts[i]}%)</div></div>`).join('');
   document.getElementById('d-prog').innerHTML = goals.map((g,i)=>{
     const p = s.pcts[i], fc = p>=80?'#10d97c':p>=60?'#ffb547':'#ff5a72';
     return `<div class="prog-item">
-      <div class="prog-hdr"><div class="prog-name">${g.emoji} ${g.name}</div><div class="prog-pct">${p}%</div></div>
+      <div class="prog-hdr"><div class="prog-name">${esc(g.emoji)} ${esc(g.name)}</div><div class="prog-pct">${p}%</div></div>
       <div class="prog-bg"><div class="prog-fill" style="width:${p}%;background:linear-gradient(90deg,${g.color},${fc})"></div></div></div>`;
   }).join('');
   document.getElementById('d-bar').innerHTML = goals.map((g,i)=>{
@@ -527,7 +533,7 @@ function renderDash() {
     return `<div class="bar-col">
       <div class="bar-pct-lbl">${s.pcts[i]}%</div>
       <div class="bar-fill" style="height:${h}px;background:linear-gradient(180deg,${g.color},${g.color}88)"></div>
-      <div class="bar-lbl">${g.emoji}</div></div>`;
+      <div class="bar-lbl">${esc(g.emoji)}</div></div>`;
   }).join('');
   const dailyWrap = document.getElementById('d-daily-pct');
   if (dailyWrap) {
@@ -635,8 +641,8 @@ function renderFinance() {
       <div class="fin-item">
         <div class="fi-icon fi-icon-${t.type==='income'?'in':'out'}">${t.type==='income'?'💚':'❤️'}</div>
         <div class="fi-info">
-          <div class="fi-name">${t.name}</div>
-          <div class="fi-sub"><span>${t.date}</span><span class="fi-cat-badge">${t.cat}</span>${t.note?`<span style="font-style:italic;color:var(--muted2)">${t.note}</span>`:''}</div>
+          <div class="fi-name">${esc(t.name)}</div>
+          <div class="fi-sub"><span>${esc(t.date)}</span><span class="fi-cat-badge">${esc(t.cat)}</span>${t.note?`<span style="font-style:italic;color:var(--muted2)">${esc(t.note)}</span>`:''}</div>
         </div>
         <div class="fi-amt fi-amt-${t.type==='income'?'in':'out'}">${t.type==='income'?'+':'-'}${fmtBaht(t.amt)} ฿</div>
         <button class="fi-del" onclick="deleteTx(${t.id})">✕</button>
@@ -683,7 +689,7 @@ function renderPie(txs, svgId, legendId) {
   legend.innerHTML = entries.slice(0,5).map(([cat,val],i)=>`
     <div class="pie-legend-item">
       <div class="pie-dot" style="background:${CAT_COLORS[i%CAT_COLORS.length]}"></div>
-      <span style="color:var(--text2)">${cat}</span>
+      <span style="color:var(--text2)">${esc(cat)}</span>
       <span class="pie-legend-val">${fmtBahtShort(val)} ฿</span>
     </div>`).join('');
 }
@@ -696,7 +702,7 @@ function renderTopExpBar(txs, total) {
   const max = entries[0][1];
   wrap.innerHTML = entries.map(([cat,val],i)=>`
     <div class="fin-bar-item">
-      <div class="fin-bar-lbl" title="${cat}">${cat}</div>
+      <div class="fin-bar-lbl" title="${esc(cat)}">${esc(cat)}</div>
       <div class="fin-bar-track"><div class="fin-bar-fill" style="width:${(val/max*100)}%;background:${CAT_COLORS[i%CAT_COLORS.length]}"></div></div>
       <div class="fin-bar-val" style="color:${CAT_COLORS[i%CAT_COLORS.length]}">${fmtBahtShort(val)} ฿</div>
     </div>`).join('');
