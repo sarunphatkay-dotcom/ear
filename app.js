@@ -243,17 +243,13 @@ async function doLogin() {
   const email = document.getElementById('login-email').value.trim();
   const pw = document.getElementById('login-pw').value;
   document.getElementById('login-err').classList.remove('show');
-  if (!email || !pw) {
-    showAuthErr('login', 'กรุณากรอก Email และ Password');
-    return;
-  }
+  if (!email || !pw) { showAuthErr('login', 'กรุณากรอก Email และ Password'); return; }
   setAuthLoading(true);
   try {
-    const { data, error } = await sb.rpc('sdt_login_v2', { p_email: email, p_password: pw });
-    if (error) { showAuthErr('login', 'เชื่อมต่อไม่ได้ กรุณาลองใหม่'); return; }
-    if (data.error) { showAuthErr('login', data.error); return; }
+    const { data, error } = await sb.auth.signInWithPassword({ email, password: pw });
+    if (error) { showAuthErr('login', authMsg(error)); return; }
     const remember = document.getElementById('login-remember').checked;
-    await onLoginSuccess({ ...data.user, token: data.token }, remember);
+    await onLoginSuccess(data.session, remember);
   } catch(e) {
     showAuthErr('login', 'เชื่อมต่อไม่ได้ กรุณาลองใหม่');
   } finally {
@@ -268,16 +264,20 @@ async function doRegister() {
   document.getElementById('reg-err').classList.remove('show');
   document.getElementById('reg-ok').classList.remove('show');
   if (!name || !email || !pw) { showAuthErr('reg', 'กรุณากรอกข้อมูลให้ครบ'); return; }
+  if (pw.length < 8) { showAuthErr('reg', 'รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร'); return; }
   setAuthLoading(true);
   try {
-    const { data, error } = await sb.rpc('sdt_register_v2', { p_name: name, p_email: email, p_password: pw });
-    if (error) { showAuthErr('reg', 'เชื่อมต่อไม่ได้ กรุณาลองใหม่'); return; }
-    if (data.error) { showAuthErr('reg', data.error); return; }
+    const { error } = await sb.auth.signUp({
+      email, password: pw,
+      options: { data: { name }, emailRedirectTo: location.origin }
+    });
+    if (error) { showAuthErr('reg', authMsg(error)); return; }
+    document.getElementById('reg-ok').textContent = '✅ สมัครสำเร็จ! กรุณาตรวจอีเมลเพื่อยืนยันก่อนเข้าสู่ระบบ';
     document.getElementById('reg-ok').classList.add('show');
     setTimeout(() => {
       switchTab('login');
       document.getElementById('login-email').value = email;
-    }, 1800);
+    }, 2500);
   } catch(e) {
     showAuthErr('reg', 'เชื่อมต่อไม่ได้ กรุณาลองใหม่');
   } finally {
@@ -291,15 +291,12 @@ function showAuthErr(prefix, msg) {
   el.classList.add('show');
 }
 
-async function onLoginSuccess(user, remember) {
-  currentUser = user;
-  if (remember) {
-    localStorage.setItem('sdtUser', JSON.stringify(user));
-    sessionStorage.removeItem('sdtUser');
-  } else {
-    sessionStorage.setItem('sdtUser', JSON.stringify(user));
-    localStorage.removeItem('sdtUser');
-  }
+async function onLoginSuccess(session, remember) {
+  if (!session) return;
+  // "remember me": keep the session across browser restarts; otherwise only for this tab session
+  localStorage.setItem('sdtRemember', remember ? '1' : '0');
+  if (remember) sessionStorage.removeItem('sdtActive'); else sessionStorage.setItem('sdtActive', '1');
+  currentUser = userFromSession(session);
   showApp();
   await loadUserData();
 }
@@ -307,7 +304,7 @@ async function onLoginSuccess(user, remember) {
 async function loadUserData() {
   showAppLoading('กำลังโหลดข้อมูลจาก Supabase...');
   try {
-    const { data, error } = await sb.rpc('sdt_get_user_data_v2', { p_token: currentUser.token, p_limit: 1000 });
+    const { data, error } = await sb.rpc('sdt_me_get_user_data', { p_limit: 1000 });
     if (error) throw new Error(error.message);
     appData.txs = data.txs || [];
     appData.rows = data.rows || {};
@@ -322,10 +319,7 @@ async function loadUserData() {
   } catch(e) {
     hideAppLoading();
     if (/unauthorized/i.test(e.message || '')) {
-      // session expired or revoked: force sign-in again
-      localStorage.removeItem('sdtUser');
-      sessionStorage.removeItem('sdtUser');
-      location.reload();
+      sb.auth.signOut().finally(() => location.reload());
       return;
     }
     setSyncStatus('error', 'โหลดข้อมูลไม่สำเร็จ');
@@ -351,13 +345,12 @@ function hideAppLoading() {
   document.getElementById('app-loading').style.display = 'none';
 }
 
-function doLogout() {
+async function doLogout() {
   if (!confirm('ออกจากระบบ?')) return;
-  if (currentUser && currentUser.token) sb.rpc('sdt_logout_v2', { p_token: currentUser.token });
+  await sb.auth.signOut();
   currentUser = null;
   appData = { info:{}, goals:DEFAULT_GOALS, rows:{}, txs:[] };
-  localStorage.removeItem('sdtUser');
-  sessionStorage.removeItem('sdtUser');
+  sessionStorage.removeItem('sdtActive');
   document.getElementById('app').style.display = 'none';
   document.getElementById('auth-screen').style.display = 'flex';
   document.getElementById('login-pw').value = '';
@@ -428,8 +421,8 @@ async function saveSettings() {
   appData.info.cls = document.getElementById('s-class').value;
   appData.info.month = document.getElementById('s-month').value || currentMonth();
   try {
-    await api('sdt_save_goals_v2', { p_token:currentUser.token, p_goals:appData.goals });
-    await api('sdt_save_info_v2', { p_token:currentUser.token, p_info:appData.info });
+    await api('sdt_me_save_goals', { p_goals:appData.goals });
+    await api('sdt_me_save_info', { p_info:appData.info });
     const fl = document.getElementById('save-flash');
     fl.classList.add('show');
     setTimeout(() => fl.classList.remove('show'), 2000);
@@ -488,7 +481,7 @@ function toggle(day, goal) {
 }
 async function syncRows() {
   try {
-    await api('sdt_save_rows_v2', { p_token:currentUser.token, p_rows:appData.rows });
+    await api('sdt_me_save_rows', { p_rows:appData.rows });
     toast('☁️ ซิงค์ข้อมูลบันทึกแล้ว!');
   } catch(e) {
     toast('⚠️ ซิงค์ไม่สำเร็จ', '#ff5a72');
@@ -583,7 +576,7 @@ async function addTx() {
   document.getElementById('f-amt').value = '';
   document.getElementById('f-note').value = '';
   try {
-    await api('sdt_add_tx_v2', { p_token:currentUser.token, p_tx:tx });
+    await api('sdt_me_add_tx', { p_tx:tx });
     toast('✅ เพิ่มและซิงค์แล้ว!');
   } catch(e) {
     toast('⚠️ บันทึก local แต่ซิงค์ไม่สำเร็จ', '#ffb547');
@@ -593,7 +586,7 @@ async function deleteTx(id) {
   appData.txs = appData.txs.filter(t => t.id !== id);
   renderFinance();
   try {
-    await api('sdt_delete_tx_v2', { p_token:currentUser.token, p_id:id });
+    await api('sdt_me_delete_tx', { p_id:id });
     toast('🗑️ ลบและซิงค์แล้ว');
   } catch(e) {
     toast('⚠️ ลบ local แต่ซิงค์ไม่สำเร็จ', '#ffb547');
@@ -793,21 +786,52 @@ function renderBarChart(txs) {
   svg.innerHTML = html;
 }
 
-window.onload = () => {
+
+function userFromSession(session) {
+  const u = session.user;
+  const meta = u.user_metadata || {};
+  const name = meta.name || meta.full_name || (u.email || '').split('@')[0];
+  return { uid: u.id, email: u.email, name };
+}
+
+
+function authMsg(err) {
+  const m = (err && err.message) || '';
+  if (/invalid login credentials/i.test(m)) return 'อีเมลหรือรหัสผ่านไม่ถูกต้อง';
+  if (/email not confirmed/i.test(m)) return 'กรุณายืนยันอีเมลก่อนเข้าสู่ระบบ';
+  if (/already registered|already been registered/i.test(m)) return 'อีเมลนี้ถูกใช้งานแล้ว';
+  if (/rate limit|too many/i.test(m)) return 'ลองหลายครั้งเกินไป กรุณารอสักครู่';
+  if (/password/i.test(m)) return 'รหัสผ่านไม่ผ่านเกณฑ์ (อย่างน้อย 8 ตัวอักษร)';
+  return m || 'เกิดข้อผิดพลาด กรุณาลองใหม่';
+}
+
+
+async function googleLogin() {
+  document.getElementById('login-err').classList.remove('show');
+  const { error } = await sb.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: location.origin }
+  });
+  if (error) showAuthErr('login', authMsg(error));
+}
+
+
+window.onload = async () => {
   applyTheme();
   initSplash();
-  const saved = localStorage.getItem('sdtUser') || sessionStorage.getItem('sdtUser');
-  if (saved) {
-    try {
-      currentUser = JSON.parse(saved);
-      if (!currentUser.token) throw new Error('legacy session');
-      showApp();
-      loadUserData();
-    } catch(e) {
-      localStorage.removeItem('sdtUser');
-      sessionStorage.removeItem('sdtUser');
-    }
+  localStorage.removeItem('sdtUser');
+  sessionStorage.removeItem('sdtUser');
+  const { data } = await sb.auth.getSession();
+  const session = data && data.session;
+  if (!session) return;
+  // not "remember me" and this is a new browser session: sign out
+  if (localStorage.getItem('sdtRemember') !== '1' && !sessionStorage.getItem('sdtActive')) {
+    await sb.auth.signOut();
+    return;
   }
+  currentUser = userFromSession(session);
+  showApp();
+  loadUserData();
 };
 
 let resizeTimer;
